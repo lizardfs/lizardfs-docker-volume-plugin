@@ -221,7 +221,7 @@ docker volume ls
 if [ ! $? -eq 0 ]; then echo "TEST FAILED"; exit $?; fi
 
 echo "$log_prefix Make sure plugin is not logging DEBUG messages"
-cat /var/log/docker.log | grep $plugin_id | tail -n 1 | grep DEBUG
+cat /var/log/docker.log | grep $plugin_id | tail -n 1 | grep -i DEBUG
 if [ $? -eq 0 ]; then echo "TEST FAILED"; exit $?; fi
 
 echo "$log_prefix Set log level to 'DEBUG'" && \
@@ -233,7 +233,7 @@ echo "$log_prefix Test a 'docker volume ls'" && \
 docker volume ls && \
 \
 echo "$log_prefix Make Sure that the plugin does log a DEBUG message" && \
-cat /var/log/docker.log | grep $plugin_id | tail -n 1 | grep DEBUG
+cat /var/log/docker.log | grep $plugin_id | tail -n 1 | grep -i DEBUG
 
 if [ ! $? -eq 0 ]; then echo "TEST FAILED"; exit $?; fi
 

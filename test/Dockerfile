@@ -1,10 +1,8 @@
 FROM docker:stable-dind
 
 # Install dependencies
-RUN apk add --no-cache bash curl jq python3 wget
+RUN apk add --no-cache bash curl jq python3 wget docker-compose go
 
-# Install Docker compose
-RUN pip3 install docker-compose
 
 # Create our working directory
 RUN mkdir /project

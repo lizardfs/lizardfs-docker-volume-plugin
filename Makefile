@@ -1,4 +1,4 @@
-PLUGIN_NAME = kadimasolutions/lizardfs-volume-plugin
+PLUGIN_NAME = lizardfs/lizardfs-volume-plugin
 PLUGIN_TAG ?= latest
 
 all: clean rootfs create
@@ -14,7 +14,7 @@ config:
 
 rootfs: config
 	@echo "### docker build: rootfs image with"
-	@docker build -t ${PLUGIN_NAME}:rootfs --build-arg http_proxy=${http_proxy} --build-arg https_proxy=${https_proxy} .
+	@docker build -t ${PLUGIN_NAME}:rootfs .
 	@echo "### create rootfs directory in ./plugin/rootfs"
 	@mkdir -p ./plugin/rootfs
 	@docker create --name tmp ${PLUGIN_NAME}:rootfs

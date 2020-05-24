@@ -1,10 +1,10 @@
+
 {
   "description": "LizardFS volume plugin for Docker",
   "documentation": "https://docs.docker.com/engine/extend/plugins/",
-  "workdir": "/project",
+  "workdir": "/app",
   "entrypoint": [
-    "node",
-    "index.js"
+    "lizardfs-volume-plugin"
   ],
   "env": [
     {
