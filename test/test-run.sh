@@ -244,34 +244,4 @@ docker-compose down -v
 
 if [ ! $? -eq 0 ]; then echo "TEST FAILED"; exit $?; fi
 
-# Test setting the CONNECT_TIMEOUT
-
-echo "$log_prefix Setting the plugin HOST='not-a-cluster' CONNECT_TIMEOUT='3000'" && \
-docker plugin disable lizardfs && \
-docker plugin set lizardfs HOST=not-a-cluster && \
-docker plugin set lizardfs CONNECT_TIMEOUT=3000 && \
-docker plugin enable lizardfs
-
-if [ ! $? -eq 0 ]; then echo "TEST FAILED"; exit $?; fi
-
-echo "$log_prefix Check timeout when connecting to non-existent cluster"
-time -f %e -o /tmp/elapsed docker volume ls
-elapsed=$(cat /tmp/elapsed | awk -F . '{print $1}')
-
-if [ $elapsed -gt 4 -o $elapsed -lt 2 ]; then echo "TEST FAILED"; exit 1; fi
-
-echo "$log_prefix Setting the plugin HOST='not-a-cluster' CONNECT_TIMEOUT='10000'" && \
-docker plugin disable lizardfs && \
-docker plugin set lizardfs HOST=not-a-cluster && \
-docker plugin set lizardfs CONNECT_TIMEOUT=10000 && \
-docker plugin enable lizardfs
-
-if [ ! $? -eq 0 ]; then echo "TEST FAILED"; exit $?; fi
-
-echo "$log_prefix Check timeout when connecting to non-existent cluster"
-time -f %e -o /tmp/elapsed docker volume ls
-elapsed=$(cat /tmp/elapsed | awk -F . '{print $1}')
-
-if [ $elapsed -gt 11 -o $elapsed -lt 9 ]; then echo "TEST FAILED"; exit 1; fi
-
 echo "$log_prefix ALL DONE. SUCCESS!"
