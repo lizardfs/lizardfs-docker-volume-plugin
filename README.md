@@ -2,6 +2,8 @@
 
 A Docker volume driver plugin for mounting a [LizardFS](https://lizardfs.com) filesystem. Allows you to transparently provide storage for your Docker containers using LizardFS. This plugin can be used in combination with our [LizardFS Docker Image](https://github.com/kadimasolutions/docker_lizardfs) to create a fully containerized, clustered storage solution for Docker Swarm. Documentation and development are still in progress. A guide for getting started with Swarm can be found in [Getting Started](getting-started.md). The Swarm usage will likely be changed soon in favor of combining the LizardFS services with the plugin.
 
+[![Build Status](https://travis-ci.org/lizardfs/lizardfs-docker-volume-plugin.svg?branch=master)](https://travis-ci.org/lizardfs/lizardfs-docker-volume-plugin)
+
 ## Usage
 
 ### Prerequisites
