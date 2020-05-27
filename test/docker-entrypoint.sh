@@ -9,6 +9,3 @@ echo "$log_prefix Creating Test Environment"
 
 echo "$log_prefix Running Tests"
 /test-run.sh
-
-echo "$log_prefix All done. Stopping Docker"
-kill -SIGTERM $(cat /run/dockerd-entrypoint.pid)
