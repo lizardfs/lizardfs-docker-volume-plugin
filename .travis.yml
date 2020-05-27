@@ -1,0 +1,6 @@
+services:
+  - docker
+script:
+  - make all
+  - ./build-tests.sh
+  - ./run-tests.sh
