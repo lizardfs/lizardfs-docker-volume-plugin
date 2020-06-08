@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/go-plugins-helpers/volume"
+	reaper "github.com/ramr/go-reaper"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
@@ -11,6 +12,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -155,13 +157,16 @@ func (l lizardfsDriver) Mount(request *volume.MountRequest) (*volume.MountRespon
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(connectTimeout)*time.Millisecond)
 		defer cancel()
-		output, err := exec.CommandContext(ctx, "lfsmount", params...).CombinedOutput()
-
+		cmd := exec.CommandContext(ctx, "lfsmount", params...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pgid: 1}
+		err = cmd.Start()
 		if err != nil {
-			log.Error(string(output))
 			return nil, err
 		}
-		log.Debug(string(output))
+		err = cmd.Wait()
+		if err != nil {
+			log.Error(err)
+		}
 		mounted[volumeName] = append(mounted[volumeName], mountID)
 		return &volume.MountResponse{Mountpoint: hostMountpoint}, nil
 	} else {
@@ -245,6 +250,7 @@ func main() {
 	} else {
 		log.SetLevel(logLevel)
 	}
+	go reaper.Reap()
 	log.Debugf("log level set to %s", log.GetLevel())
 	connectTimeout, err = strconv.Atoi(connectTimeoutStr)
 	if err != nil {
