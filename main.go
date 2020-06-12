@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/docker/go-plugins-helpers/volume"
-	reaper "github.com/ramr/go-reaper"
+	"github.com/ramr/go-reaper"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
@@ -60,12 +60,16 @@ func (l lizardfsDriver) Create(request *volume.CreateRequest) error {
 	if err == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(connectTimeout)*time.Millisecond)
 		defer cancel()
-		output, err := exec.CommandContext(ctx, "lizardfs", "setgoal", "-r", replicationGoal, volumePath).CombinedOutput()
+		cmd := exec.CommandContext(ctx, "lizardfs", "setgoal", "-r", replicationGoal, volumePath)
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pgid: 1}
+		err = cmd.Start()
 		if err != nil {
-			log.Error(string(output))
 			return err
 		}
-		log.Debug(string(output))
+		err = cmd.Wait()
+		if err != nil {
+			log.Error(err)
+		}
 	}
 
 	return nil
@@ -243,6 +247,34 @@ func initClient() {
 	log.Debug(string(output))
 }
 
+func startReaperWorker() {
+	// See related issue in go-reaper https://github.com/ramr/go-reaper/issues/11
+	if _, hasReaper := os.LookupEnv("REAPER"); !hasReaper {
+		go reaper.Reap()
+
+		args := append(os.Args, "#worker")
+
+		pwd, err := os.Getwd()
+		if err != nil {
+			panic(err)
+		}
+
+		workerEnv := []string{fmt.Sprintf("REAPER=%d", os.Getpid())}
+
+		var wstatus syscall.WaitStatus
+		pattrs := &syscall.ProcAttr{
+			Dir:   pwd,
+			Env:   append(os.Environ(), workerEnv...),
+			Sys:   &syscall.SysProcAttr{Setsid: true},
+			Files: []uintptr{0, 1, 2},
+		}
+		workerPid, _ := syscall.ForkExec(args[0], args, pattrs)
+
+		syscall.Wait4(workerPid, &wstatus, 0, nil)
+		return
+	}
+}
+
 func main() {
 	logLevel, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
 	if err != nil {
@@ -250,8 +282,8 @@ func main() {
 	} else {
 		log.SetLevel(logLevel)
 	}
-	go reaper.Reap()
 	log.Debugf("log level set to %s", log.GetLevel())
+	startReaperWorker()
 	connectTimeout, err = strconv.Atoi(connectTimeoutStr)
 	if err != nil {
 		log.Errorf("failed to parse timeout with error %v. Assuming default %v", err, connectTimeout)
