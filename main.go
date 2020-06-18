@@ -51,11 +51,22 @@ func (l lizardfsDriver) Create(request *volume.CreateRequest) error {
 		log.Warning("tried to create a volume with same name as root volume. Ignoring request.")
 	}
 
-	err := os.MkdirAll(volumePath, 760)
-	if err != nil {
-		return err
+	errs := make(chan error, 1)
+	go func() {
+		err := os.MkdirAll(volumePath, 760)
+		errs <- err
+	}()
+
+	select {
+	case err := <-errs:
+		if err != nil {
+			return err
+		}
+	case <-time.After(time.Duration(connectTimeout) * time.Millisecond):
+		return errors.New("create operation timeout")
 	}
-	_, err = strconv.Atoi(replicationGoal)
+
+	_, err := strconv.Atoi(replicationGoal)
 	if err == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(connectTimeout)*time.Millisecond)
 		defer cancel()
