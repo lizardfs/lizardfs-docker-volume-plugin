@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/docker/go-plugins-helpers/volume"
 	log "github.com/sirupsen/logrus"
@@ -71,27 +72,40 @@ func (l lizardfsDriver) Create(request *volume.CreateRequest) error {
 
 func (l lizardfsDriver) List() (*volume.ListResponse, error) {
 	log.WithField("method", "list").Debugf("")
-	var vols []*volume.Volume
-	directories, err := ioutil.ReadDir(volumeRoot)
-	if err != nil {
-		return nil, err
-	}
-	for _, directory := range directories {
-		if len(mounted[directory.Name()]) == 0 {
-			vols = append(vols, &volume.Volume{Name: directory.Name()})
-		} else {
-			vols = append(vols, &volume.Volume{Name: directory.Name(), Mountpoint: path.Join(hostVolumePath, directory.Name())})
+	volumes := make(chan []*volume.Volume, 1)
+	errs := make(chan error, 1)
+	go func() {
+		var vols []*volume.Volume
+		directories, err := ioutil.ReadDir(volumeRoot)
+		if err != nil {
+			errs <- err
 		}
-	}
+		for _, directory := range directories {
+			if len(mounted[directory.Name()]) == 0 {
+				vols = append(vols, &volume.Volume{Name: directory.Name()})
+			} else {
+				vols = append(vols, &volume.Volume{Name: directory.Name(), Mountpoint: path.Join(hostVolumePath, directory.Name())})
+			}
+		}
 
-	if rootVolumeName != "" {
-		if len(mounted[rootVolumeName]) == 0 {
-			vols = append(vols, &volume.Volume{Name: rootVolumeName})
-		} else {
-			vols = append(vols, &volume.Volume{Name: rootVolumeName, Mountpoint: path.Join(hostVolumePath, rootVolumeName)})
+		if rootVolumeName != "" {
+			if len(mounted[rootVolumeName]) == 0 {
+				vols = append(vols, &volume.Volume{Name: rootVolumeName})
+			} else {
+				vols = append(vols, &volume.Volume{Name: rootVolumeName, Mountpoint: path.Join(hostVolumePath, rootVolumeName)})
+			}
 		}
+		volumes <- vols
+	}()
+
+	select {
+	case res := <-volumes:
+		return &volume.ListResponse{Volumes: res}, nil
+	case err := <-errs:
+		return nil, err
+	case <-time.After(time.Duration(connectTimeout) * time.Millisecond):
+		return nil, errors.New("list operation timeout")
 	}
-	return &volume.ListResponse{Volumes: vols}, nil
 }
 
 func (l lizardfsDriver) Get(request *volume.GetRequest) (*volume.GetResponse, error) {
