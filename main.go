@@ -115,10 +115,25 @@ func (l lizardfsDriver) Get(request *volume.GetRequest) (*volume.GetResponse, er
 	if volumeName != rootVolumeName {
 		volumePath = fmt.Sprintf("%s%s", volumeRoot, volumeName)
 	}
-	if _, err := os.Stat(volumePath); os.IsNotExist(err) {
-		return nil, err
+	errs := make(chan error, 1)
+	go func() {
+		if _, err := os.Stat(volumePath); os.IsNotExist(err) {
+			errs <- err
+		} else {
+			errs <- nil
+		}
+	}()
+
+	select {
+	case err := <-errs:
+		if err != nil {
+			return nil, err
+		} else {
+			return &volume.GetResponse{Volume: &volume.Volume{Name: volumeName, Mountpoint: volumePath}}, nil
+		}
+	case <-time.After(time.Duration(connectTimeout) * time.Millisecond):
+		return nil, errors.New("get operation timeout")
 	}
-	return &volume.GetResponse{Volume: &volume.Volume{Name: volumeName, Mountpoint: volumePath}}, nil
 }
 
 func (l lizardfsDriver) Remove(request *volume.RemoveRequest) error {
