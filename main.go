@@ -73,6 +73,9 @@ func (l lizardfsDriver) List() (*volume.ListResponse, error) {
 	log.WithField("method", "list").Debugf("")
 	var vols []*volume.Volume
 	directories, err := ioutil.ReadDir(volumeRoot)
+	if err != nil {
+		return nil, err
+	}
 	for _, directory := range directories {
 		if len(mounted[directory.Name()]) == 0 {
 			vols = append(vols, &volume.Volume{Name: directory.Name()})
@@ -80,9 +83,7 @@ func (l lizardfsDriver) List() (*volume.ListResponse, error) {
 			vols = append(vols, &volume.Volume{Name: directory.Name(), Mountpoint: path.Join(hostVolumePath, directory.Name())})
 		}
 	}
-	if err != nil {
-		return nil, err
-	}
+
 	if rootVolumeName != "" {
 		if len(mounted[rootVolumeName]) == 0 {
 			vols = append(vols, &volume.Volume{Name: rootVolumeName})
