@@ -269,9 +269,10 @@ func startReaperWorker() {
 			Files: []uintptr{0, 1, 2},
 		}
 		workerPid, _ := syscall.ForkExec(args[0], args, pattrs)
-
-		syscall.Wait4(workerPid, &wstatus, 0, nil)
-		return
+		_, err = syscall.Wait4(workerPid, &wstatus, 0, nil)
+		for syscall.EINTR == err {
+			_, err = syscall.Wait4(workerPid, &wstatus, 0, nil)
+		}
 	}
 }
 
