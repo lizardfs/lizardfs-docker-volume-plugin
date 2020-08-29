@@ -1,4 +1,4 @@
-PLUGIN_NAME = lizardfs/lizardfs-volume-plugin
+PLUGIN_NAME = lizardfsdocker/lizardfs-volume-plugin
 PLUGIN_TAG ?= latest
 
 all: clean rootfs create
