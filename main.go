@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/docker/go-plugins-helpers/volume"
+	"github.com/ramr/go-reaper"
 	log "github.com/sirupsen/logrus"
 	"io/ioutil"
 	"os"
@@ -11,6 +13,7 @@ import (
 	"path"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
@@ -50,20 +53,35 @@ func (l lizardfsDriver) Create(request *volume.CreateRequest) error {
 		log.Warning("tried to create a volume with same name as root volume. Ignoring request.")
 	}
 
-	err := os.MkdirAll(volumePath, 760)
-	if err != nil {
-		return err
+	errs := make(chan error, 1)
+	go func() {
+		err := os.MkdirAll(volumePath, 760)
+		errs <- err
+	}()
+
+	select {
+	case err := <-errs:
+		if err != nil {
+			return err
+		}
+	case <-time.After(time.Duration(connectTimeout) * time.Millisecond):
+		return errors.New("create operation timeout")
 	}
-	_, err = strconv.Atoi(replicationGoal)
+
+	_, err := strconv.Atoi(replicationGoal)
 	if err == nil {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(connectTimeout)*time.Millisecond)
 		defer cancel()
-		output, err := exec.CommandContext(ctx, "lizardfs", "setgoal", "-r", replicationGoal, volumePath).CombinedOutput()
+		cmd := exec.CommandContext(ctx, "lizardfs", "setgoal", "-r", replicationGoal, volumePath)
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pgid: 1}
+		err = cmd.Start()
 		if err != nil {
-			log.Error(string(output))
 			return err
 		}
-		log.Debug(string(output))
+		err = cmd.Wait()
+		if err != nil {
+			log.Error(err)
+		}
 	}
 
 	return nil
@@ -71,27 +89,40 @@ func (l lizardfsDriver) Create(request *volume.CreateRequest) error {
 
 func (l lizardfsDriver) List() (*volume.ListResponse, error) {
 	log.WithField("method", "list").Debugf("")
-	var vols []*volume.Volume
-	directories, err := ioutil.ReadDir(volumeRoot)
-	if err != nil {
-		return nil, err
-	}
-	for _, directory := range directories {
-		if len(mounted[directory.Name()]) == 0 {
-			vols = append(vols, &volume.Volume{Name: directory.Name()})
-		} else {
-			vols = append(vols, &volume.Volume{Name: directory.Name(), Mountpoint: path.Join(hostVolumePath, directory.Name())})
+	volumes := make(chan []*volume.Volume, 1)
+	errs := make(chan error, 1)
+	go func() {
+		var vols []*volume.Volume
+		directories, err := ioutil.ReadDir(volumeRoot)
+		if err != nil {
+			errs <- err
 		}
-	}
+		for _, directory := range directories {
+			if len(mounted[directory.Name()]) == 0 {
+				vols = append(vols, &volume.Volume{Name: directory.Name()})
+			} else {
+				vols = append(vols, &volume.Volume{Name: directory.Name(), Mountpoint: path.Join(hostVolumePath, directory.Name())})
+			}
+		}
 
-	if rootVolumeName != "" {
-		if len(mounted[rootVolumeName]) == 0 {
-			vols = append(vols, &volume.Volume{Name: rootVolumeName})
-		} else {
-			vols = append(vols, &volume.Volume{Name: rootVolumeName, Mountpoint: path.Join(hostVolumePath, rootVolumeName)})
+		if rootVolumeName != "" {
+			if len(mounted[rootVolumeName]) == 0 {
+				vols = append(vols, &volume.Volume{Name: rootVolumeName})
+			} else {
+				vols = append(vols, &volume.Volume{Name: rootVolumeName, Mountpoint: path.Join(hostVolumePath, rootVolumeName)})
+			}
 		}
+		volumes <- vols
+	}()
+
+	select {
+	case res := <-volumes:
+		return &volume.ListResponse{Volumes: res}, nil
+	case err := <-errs:
+		return nil, err
+	case <-time.After(time.Duration(connectTimeout) * time.Millisecond):
+		return nil, errors.New("list operation timeout")
 	}
-	return &volume.ListResponse{Volumes: vols}, nil
 }
 
 func (l lizardfsDriver) Get(request *volume.GetRequest) (*volume.GetResponse, error) {
@@ -101,10 +132,25 @@ func (l lizardfsDriver) Get(request *volume.GetRequest) (*volume.GetResponse, er
 	if volumeName != rootVolumeName {
 		volumePath = fmt.Sprintf("%s%s", volumeRoot, volumeName)
 	}
-	if _, err := os.Stat(volumePath); os.IsNotExist(err) {
-		return nil, err
+	errs := make(chan error, 1)
+	go func() {
+		if _, err := os.Stat(volumePath); os.IsNotExist(err) {
+			errs <- err
+		} else {
+			errs <- nil
+		}
+	}()
+
+	select {
+	case err := <-errs:
+		if err != nil {
+			return nil, err
+		} else {
+			return &volume.GetResponse{Volume: &volume.Volume{Name: volumeName, Mountpoint: volumePath}}, nil
+		}
+	case <-time.After(time.Duration(connectTimeout) * time.Millisecond):
+		return nil, errors.New("get operation timeout")
 	}
-	return &volume.GetResponse{Volume: &volume.Volume{Name: volumeName, Mountpoint: volumePath}}, nil
 }
 
 func (l lizardfsDriver) Remove(request *volume.RemoveRequest) error {
@@ -156,13 +202,16 @@ func (l lizardfsDriver) Mount(request *volume.MountRequest) (*volume.MountRespon
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(connectTimeout)*time.Millisecond)
 		defer cancel()
-		output, err := exec.CommandContext(ctx, "lfsmount", params...).CombinedOutput()
-
+		cmd := exec.CommandContext(ctx, "lfsmount", params...)
+		cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true, Pgid: 1}
+		err = cmd.Start()
 		if err != nil {
-			log.Error(string(output))
 			return nil, err
 		}
-		log.Debug(string(output))
+		err = cmd.Wait()
+		if err != nil {
+			log.Error(err)
+		}
 		mounted[volumeName] = append(mounted[volumeName], mountID)
 		return &volume.MountResponse{Mountpoint: hostMountpoint}, nil
 	} else {
@@ -239,6 +288,35 @@ func initClient() {
 	log.Debug(string(output))
 }
 
+func startReaperWorker() {
+	// See related issue in go-reaper https://github.com/ramr/go-reaper/issues/11
+	if _, hasReaper := os.LookupEnv("REAPER"); !hasReaper {
+		go reaper.Reap()
+
+		args := append(os.Args, "#worker")
+
+		pwd, err := os.Getwd()
+		if err != nil {
+			panic(err)
+		}
+
+		workerEnv := []string{fmt.Sprintf("REAPER=%d", os.Getpid())}
+
+		var wstatus syscall.WaitStatus
+		pattrs := &syscall.ProcAttr{
+			Dir:   pwd,
+			Env:   append(os.Environ(), workerEnv...),
+			Sys:   &syscall.SysProcAttr{Setsid: true},
+			Files: []uintptr{0, 1, 2},
+		}
+		workerPid, _ := syscall.ForkExec(args[0], args, pattrs)
+		_, err = syscall.Wait4(workerPid, &wstatus, 0, nil)
+		for syscall.EINTR == err {
+			_, err = syscall.Wait4(workerPid, &wstatus, 0, nil)
+		}
+	}
+}
+
 func main() {
 	logLevel, err := log.ParseLevel(os.Getenv("LOG_LEVEL"))
 	if err != nil {
@@ -247,6 +325,7 @@ func main() {
 		log.SetLevel(logLevel)
 	}
 	log.Debugf("log level set to %s", log.GetLevel())
+	startReaperWorker()
 	connectTimeout, err = strconv.Atoi(connectTimeoutStr)
 	if err != nil {
 		log.Errorf("failed to parse timeout with error %v. Assuming default %v", err, connectTimeout)
