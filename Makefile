@@ -1,5 +1,6 @@
 PLUGIN_NAME = lizardfsdocker/lizardfs-volume-plugin
 PLUGIN_TAG ?= latest
+TRAVIS_BUILD_NUMBER ?= local
 
 all: clean rootfs create
 
@@ -26,6 +27,7 @@ create:
 	@docker plugin rm -f ${PLUGIN_NAME}:${PLUGIN_TAG} || true
 	@echo "### create new plugin ${PLUGIN_NAME}:${PLUGIN_TAG} from ./plugin"
 	@docker plugin create ${PLUGIN_NAME}:${PLUGIN_TAG} ./plugin
+	@docker plugin create ${PLUGIN_NAME}:${TRAVIS_BUILD_NUMBER} ./plugin
 
 enable:
 	@echo "### enable plugin ${PLUGIN_NAME}:${PLUGIN_TAG}"
@@ -37,7 +39,5 @@ disable:
 
 push:  clean rootfs create
 	@echo "### push plugin ${PLUGIN_NAME}:${PLUGIN_TAG}"
-	@docker tag ${PLUGIN_NAME}:rootfs ${PLUGIN_NAME}:${TRAVIS_BUILD_NUMBER}
-	@docker tag ${PLUGIN_NAME}:${PLUGIN_TAG} ${PLUGIN_NAME}:${TRAVIS_BUILD_NUMBER}
 	@docker plugin push ${PLUGIN_NAME}:${TRAVIS_BUILD_NUMBER}
 	@docker plugin push ${PLUGIN_NAME}:${PLUGIN_TAG}
