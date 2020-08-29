@@ -37,4 +37,6 @@ disable:
 
 push:  clean rootfs create enable
 	@echo "### push plugin ${PLUGIN_NAME}:${PLUGIN_TAG}"
+	@docker tag ${PLUGIN_NAME}:${PLUGIN_TAG} ${PLUGIN_NAME}:${TRAVIS_BUILD_NUMBER}
+	@docker plugin push ${PLUGIN_NAME}:${TRAVIS_BUILD_NUMBER}
 	@docker plugin push ${PLUGIN_NAME}:${PLUGIN_TAG}
