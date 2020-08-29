@@ -25,6 +25,7 @@ rootfs: config
 create:
 	@echo "### remove existing plugin ${PLUGIN_NAME}:${PLUGIN_TAG} if exists"
 	@docker plugin rm -f ${PLUGIN_NAME}:${PLUGIN_TAG} || true
+	@docker plugin rm -f ${PLUGIN_NAME}:${TRAVIS_BUILD_NUMBER} || true
 	@echo "### create new plugin ${PLUGIN_NAME}:${PLUGIN_TAG} from ./plugin"
 	@docker plugin create ${PLUGIN_NAME}:${PLUGIN_TAG} ./plugin
 	@docker plugin create ${PLUGIN_NAME}:${TRAVIS_BUILD_NUMBER} ./plugin
