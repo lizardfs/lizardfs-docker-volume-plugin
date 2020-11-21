@@ -1,6 +1,6 @@
 # LizardFS Docker Plugin
 
-A Docker volume driver plugin for mounting a [LizardFS](https://lizardfs.com) filesystem. Allows you to transparently provide storage for your Docker containers using LizardFS. This plugin can be used in combination with our [LizardFS Docker Image](https://github.com/kadimasolutions/docker_lizardfs) to create a fully containerized, clustered storage solution for Docker Swarm. Documentation and development are still in progress. A guide for getting started with Swarm can be found in [Getting Started](getting-started.md). The Swarm usage will likely be changed soon in favor of combining the LizardFS services with the plugin.
+A Docker volume driver plugin for mounting a [LizardFS](https://lizardfs.com) filesystem. Allows you to transparently provide storage for your Docker containers using LizardFS. This plugin can be used in combination with [LizardFS Docker Image](https://github.com/kadimasolutions/docker_lizardfs) to create a fully containerized, clustered storage solution for Docker Swarm. Documentation and development are still in progress. A guide for getting started with Swarm can be found in [Getting Started](getting-started.md). The Swarm usage will likely be changed soon in favor of combining the LizardFS services with the plugin.
 
 [![Build Status](https://travis-ci.org/lizardfs/lizardfs-docker-volume-plugin.svg?branch=master)](https://travis-ci.org/lizardfs/lizardfs-docker-volume-plugin)
 
@@ -10,18 +10,18 @@ A Docker volume driver plugin for mounting a [LizardFS](https://lizardfs.com) fi
 
 Before you can use the plugin you must have:
 
-* A running LizardFS cluster that your Docker host can access.
-* A directory on the LizardFS filesystem that can be used by the plugin to store Docker volumes. This can be any normal directory. By default the plugin will use `/docker/volumes`, but this can be changed ( see [REMOTE_PATH](#remote-path) ).
+* A running LizardFS cluster that your Docker host can access. We recommend using https://github.com/lizardfs/lizardfs-docker-for-testing to get a vanilla cluster running in no time.
+* A directory on the LizardFS filesystem that can be used by the plugin to store Docker volumes. This can be any normal directory. By default, the plugin will use `/docker/volumes`, but this can be changed ( see [REMOTE_PATH](#remote-path) ).
 
-Once these conditions are met you are ready to install the plugin.
+Once these conditions are met, you are ready to install the plugin.
 
 ### Installation
 
 The plugin is simple use and can be installed as a Docker container without having to install any other system dependencies.
 
-    $ docker plugin install --alias lizardfs kadimasolutions/lizardfs-volume-plugin HOST=mfsmaster PORT=9421
+    $ docker plugin install --alias lizardfs lizardfsdocker/lizardfs-volume-plugin HOST=mfsmaster PORT=9421
 
-Docker will prompt asking if you want to grant the permissions required to run the plugin. Select yes and the plugin will download and install.
+Docker will prompt asking if you want to grant the permissions required to run the plugin. Select yes, and the plugin will download and install.
 
 > **Note:** We set the plugin alias to `lizardfs`. This is completely optional, but it allows us to refer to the plugin with a much shorter name. Throughout this readme, when reference is made to the `lizardfs` driver, it is referring to this alias.
 
@@ -42,7 +42,7 @@ You can see it by running `docker volume ls`.
     DRIVER               VOLUME NAME
     lizardfs:latest      lizard-vol
 
-Now that you have created the volume you can mount it into a container using its name. Lets mount it into an alpine container and put some data in it.
+Now that you have created the volume you can mount it into a container using its name. Let's mount it into an alpine container and put some data in it.
 
 ```sh
 $ docker run -it --rm -v lizard-vol:/data alpine sh
@@ -75,8 +75,8 @@ Using LizardFS for your Docker volumes means that you now get the benefit of Liz
 
 It is also possible, if you have multiple LizardFS clusters, to install the plugin multiple times with different settings for the different clusters. For example, if you have two LizardFS clusters, one at `mfsmaster1` and another at `mfsmaster2`, you can install the plugin two times, with different aliases, to allow you to create volumes on both clusters.
 
-    $ docker plugin install --alias lizardfs1 --grant-all-permissions kadimasolutions/lizardfs-volume-plugin HOST=mfsmaster1 PORT=9421
-    $ docker plugin install --alias lizardfs2 --grant-all-permissions kadimasolutions/lizardfs-volume-plugin HOST=mfsmaster2 PORT=9421
+    $ docker plugin install --alias lizardfs1 --grant-all-permissions lizardfsdocker/lizardfs-volume-plugin HOST=mfsmaster1 PORT=9421
+    $ docker plugin install --alias lizardfs2 --grant-all-permissions lizardfsdocker/lizardfs-volume-plugin HOST=mfsmaster2 PORT=9421
 
 This gives you the ability to create volumes for both clusters by specifying either `lizardfs1` or `lizardfs2` as the volume driver when creating a volume.
 
@@ -84,21 +84,15 @@ This gives you the ability to create volumes for both clusters by specifying eit
 
 The plugin has the ability to provide a volume that contains *all* of the LizardFS Docker volumes in it. This is called the Root Volume and is identical to mounting the configured `REMOTE_PATH` on your LizardFS filesystem into your container. This volume does not exist by default. The Root Volume is enabled by setting the `ROOT_VOLUME_NAME` to the name that you want the volume to have. You should pick a name that does not conflict with any other volume. If there is a volume with the same name as the Root Volume, the Root Volume will take precedence over the other volume.
 
-There are a few different uses for the Root Volume. Kadima Solutions designed the Root Volume feature to accommodate for containerized backup solutions. By mounting the Root Volume into a container that manages your Backups, you can backup *all* of your LizardFS Docker volumes without having to manually add a mount to the container every time you create a new volume that needs to be backed up.
+There are a few different uses for the Root Volume. We designed the Root Volume feature to accommodate for containerized backup solutions. By mounting the Root Volume into a container that manages your Backups, you can backup *all* of your LizardFS Docker volumes without having to manually add a mount to the container every time you create a new volume that needs to be backed up.
 
 The Root Volume also give you the ability to have containers create and remove LizardFS volumes without having to mount the Docker socket and make Docker API calls. Volumes can be added, removed, and otherwise manipulated simply by mounting the Root Volume and making the desired changes.
-
-### Known Issues
-
-#### Hangs on Unresponsive LizardFS Master
-
-In most cases, when the plugin cannot connect to the LizardFS cluster, the plugin will timeout quickly and simply fail to create mounts or listings of volumes. However, when the plugin *has* been able to open a connection with the LizardFS master, and the LizardFS master subsequently fails to respond, a volume list operation will cause the plugin to hang for a period of time. This will cause any Docker operations that request the volume list to freeze while the plugin attempts to connect to the cluster. To fix the issue, the connectivity to the LizardFS master must be restored, otherwise the plugin should be disabled to prevent stalling the Docker daemon.
 
 ## Configuration
 
 ### Plugin Configuration
 
-You can configure the plugin through plugin variables. You may set these variables at installation time by putting `VARIABLE_NAME=value` after the plugin name, or you can set them after the plugin has been installed using `docker plugin set kadimasolutions/lizardfs-volume-plugin VARIABLE_NAME=value`.
+You can configure the plugin through plugin variables. You may set these variables at installation time by putting `VARIABLE_NAME=value` after the plugin name, or you can set them after the plugin has been installed using `docker plugin set lizardfsdocker/lizardfs-volume-plugin VARIABLE_NAME=value`.
 
 > **Note:** When configuring the plugin after installation, the plugin must first be disabled before you can set variables. There is no danger of accidentally setting variables while the plugin is enabled, though. Docker will simply tell you that it is not possible.
 
@@ -159,7 +153,7 @@ adding `-o OptionName=value` after the volume name. For example:
 
 The replication goal option can be used to set the LizardFS replication goal on a newly created volume. The goal can be any valid goal name or number that exists on the LizardFS master. See the LizardFS [documentation](https://docs.lizardfs.com/adminguide/replication.html) for more information.
 
-Note that even after a volume has been created and a goal has been set, it is still possible to manually change the goal of the volume directory on the LizardFS filesystem manually. For example, assuming you have mounted the LizardFS filesystem manually ( not using a docker volume ):
+Note that even after a volume has been created, and a goal has been set, it is still possible to manually change the goal of the volume directory on the LizardFS filesystem manually. For example, assuming you have mounted the LizardFS filesystem manually ( not using a docker volume ):
 
     lizardfs setgoal goal_name /mnt/mfs/docker/volumes/volume_name
 
@@ -189,7 +183,7 @@ After that is finished you can run `make create`.
 
     $ make create
 
-This will install the Docker plugin from the `plugin` dirctory with the name `kadimasolutions/lizardfs-volume-plugin`.
+This will install the Docker plugin from the `plugin` dirctory with the name `lizardfsdocker/lizardfs-volume-plugin`.
 
 Finally run `make enable` to start the plugin.
 
@@ -219,7 +213,7 @@ This will build a Docker image, `lizardfs-volume-plugin_test`, using the Dockerf
 
 By default running `run-tests.sh` will install the plugin from the `plugin` directory before running the tests against it. This means that you must first build the plugin by running `make rootfs`, if you have not already done so. Alternatively, you can also run the tests against a version of the plugin from DockerHub by passing in the plugin tag as a parameter to the `run-tests.sh` script.
 
-    $ ./run-tests.sh kadimasolutions/lizardfs-volume-plugin:latest
+    $ ./run-tests.sh lizardfsdocker/lizardfs-volume-plugin:latest
 
 This will download the plugin from DockerHub and run the tests against that version of the plugin.
 
@@ -236,7 +230,7 @@ When you install a Docker plugin, it is given a plugin ID. You can see the first
 ```
 $ docker plugin ls
 ID                  NAME                                            DESCRIPTION                         ENABLED
-2f5b68535b92        kadimasolutions/lizardfs-volume-plugin:latest   LizardFS volume plugin for Docker   false
+2f5b68535b92        lizardfsdocker/lizardfs-volume-plugin:latest   LizardFS volume plugin for Docker   false
 ```
 
 Using that ID you can find where the plugin's rootfs was installed. By default, it should be located in `/var/lib/docker/plugins/[pluginID]/rootfs`. For our particular plugin, the file that we need to replace is the `/project/index.js` file in the plugin's rootfs. By replacing that file with an updated version and restarting ( disabling and re-enabling ) the plugin, you can update the plugin without having to re-install it.
