@@ -1,4 +1,4 @@
-PLUGIN_NAME = lizardfsdocker/lizardfs-volume-plugin
+PLUGIN_NAME = lizardfscom/lizardfs-volume-plugin
 PLUGIN_TAG ?= latest
 TRAVIS_BUILD_NUMBER ?= local
 

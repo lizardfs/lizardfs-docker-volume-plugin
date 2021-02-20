@@ -19,7 +19,7 @@ Once these conditions are met, you are ready to install the plugin.
 
 The plugin is simple use and can be installed as a Docker container without having to install any other system dependencies.
 
-    $ docker plugin install --alias lizardfs lizardfsdocker/lizardfs-volume-plugin HOST=mfsmaster PORT=9421
+    $ docker plugin install --alias lizardfs lizardfscom/lizardfs-volume-plugin HOST=mfsmaster PORT=9421
 
 Docker will prompt asking if you want to grant the permissions required to run the plugin. Select yes, and the plugin will download and install.
 
@@ -75,8 +75,8 @@ Using LizardFS for your Docker volumes means that you now get the benefit of Liz
 
 It is also possible, if you have multiple LizardFS clusters, to install the plugin multiple times with different settings for the different clusters. For example, if you have two LizardFS clusters, one at `mfsmaster1` and another at `mfsmaster2`, you can install the plugin two times, with different aliases, to allow you to create volumes on both clusters.
 
-    $ docker plugin install --alias lizardfs1 --grant-all-permissions lizardfsdocker/lizardfs-volume-plugin HOST=mfsmaster1 PORT=9421
-    $ docker plugin install --alias lizardfs2 --grant-all-permissions lizardfsdocker/lizardfs-volume-plugin HOST=mfsmaster2 PORT=9421
+    $ docker plugin install --alias lizardfs1 --grant-all-permissions lizardfscom/lizardfs-volume-plugin HOST=mfsmaster1 PORT=9421
+    $ docker plugin install --alias lizardfs2 --grant-all-permissions lizardfscom/lizardfs-volume-plugin HOST=mfsmaster2 PORT=9421
 
 This gives you the ability to create volumes for both clusters by specifying either `lizardfs1` or `lizardfs2` as the volume driver when creating a volume.
 
@@ -92,7 +92,7 @@ The Root Volume also give you the ability to have containers create and remove L
 
 ### Plugin Configuration
 
-You can configure the plugin through plugin variables. You may set these variables at installation time by putting `VARIABLE_NAME=value` after the plugin name, or you can set them after the plugin has been installed using `docker plugin set lizardfsdocker/lizardfs-volume-plugin VARIABLE_NAME=value`.
+You can configure the plugin through plugin variables. You may set these variables at installation time by putting `VARIABLE_NAME=value` after the plugin name, or you can set them after the plugin has been installed using `docker plugin set lizardfscom/lizardfs-volume-plugin VARIABLE_NAME=value`.
 
 > **Note:** When configuring the plugin after installation, the plugin must first be disabled before you can set variables. There is no danger of accidentally setting variables while the plugin is enabled, though. Docker will simply tell you that it is not possible.
 
@@ -183,7 +183,7 @@ After that is finished you can run `make create`.
 
     $ make create
 
-This will install the Docker plugin from the `plugin` dirctory with the name `lizardfsdocker/lizardfs-volume-plugin`.
+This will install the Docker plugin from the `plugin` dirctory with the name `lizardfscom/lizardfs-volume-plugin`.
 
 Finally run `make enable` to start the plugin.
 
@@ -213,7 +213,7 @@ This will build a Docker image, `lizardfs-volume-plugin_test`, using the Dockerf
 
 By default running `run-tests.sh` will install the plugin from the `plugin` directory before running the tests against it. This means that you must first build the plugin by running `make rootfs`, if you have not already done so. Alternatively, you can also run the tests against a version of the plugin from DockerHub by passing in the plugin tag as a parameter to the `run-tests.sh` script.
 
-    $ ./run-tests.sh lizardfsdocker/lizardfs-volume-plugin:latest
+    $ ./run-tests.sh lizardfscom/lizardfs-volume-plugin:latest
 
 This will download the plugin from DockerHub and run the tests against that version of the plugin.
 
@@ -230,7 +230,7 @@ When you install a Docker plugin, it is given a plugin ID. You can see the first
 ```
 $ docker plugin ls
 ID                  NAME                                            DESCRIPTION                         ENABLED
-2f5b68535b92        lizardfsdocker/lizardfs-volume-plugin:latest   LizardFS volume plugin for Docker   false
+2f5b68535b92        lizardfscom/lizardfs-volume-plugin:latest   LizardFS volume plugin for Docker   false
 ```
 
 Using that ID you can find where the plugin's rootfs was installed. By default, it should be located in `/var/lib/docker/plugins/[pluginID]/rootfs`. For our particular plugin, the file that we need to replace is the `/project/index.js` file in the plugin's rootfs. By replacing that file with an updated version and restarting ( disabling and re-enabling ) the plugin, you can update the plugin without having to re-install it.
